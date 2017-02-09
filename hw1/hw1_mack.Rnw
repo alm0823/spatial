@@ -1,0 +1,353 @@
+\documentclass{article}
+
+\usepackage{fancyhdr} % Required for custom headers
+\usepackage{lastpage} % Required to determine the last page for the footer
+\usepackage{extramarks} % Required for headers and footers
+\usepackage{graphicx} % Required to insert images
+\usepackage{hyperref}
+\usepackage{amsmath} %for binomial pdf
+\usepackage{parskip} % so that there's space bw paragraphs
+\usepackage{float}
+\usepackage{amsfonts}
+
+% Margins
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in 
+
+\linespread{1.1} % Line spacing
+
+% Set up the header and footer
+\pagestyle{fancy}
+\lhead{STAT 534: Spatial} % Top left header
+\chead{HW 1} % Top center header
+\rhead{Andrea Mack} % Top right header
+\lfoot{01/18/2017} % Bottom left footer
+\cfoot{} % Bottom center footer
+\rfoot{Page\ \thepage\ of\ \pageref{LastPage}} % Bottom right footer
+\renewcommand\headrulewidth{0.4pt} % Size of the header rule
+\renewcommand\footrulewidth{0.4pt} % Size of the footer rule
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+\setlength\parskip{0.5cm}
+\restylefloat{table}
+
+%----------------------------------------------------------------------------------------
+%	DOCUMENT STRUCTURE COMMANDS
+%	Skip this unless you know what you're doing
+%----------------------------------------------------------------------------------------
+
+% Header and footer for when a page split occurs within a problem environment
+\newcommand{\enterProblemHeader}[1]{
+\nobreak\extramarks{#1}{#1 continued on next page\ldots}\nobreak
+\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak
+}
+
+% Header and footer for when a page split occurs between problem environments
+\newcommand{\exitProblemHeader}[1]{
+\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak
+\nobreak\extramarks{#1}{}\nobreak
+}
+
+
+%----------------------------------------------------------------------------------------%
+
+
+
+\begin{document}
+
+<<setup, include = FALSE>>=
+require(spdep)
+require(xtable)
+require(knitr)
+opts_chunk$set(echo = FALSE, cache = FALSE, message = FALSE,
+               comment = NA, size = 'footnotesize', width = 80, dev = 'pdf',
+               dev.args = list(family = 'Palatino', pointsize = 11),
+               fig.path = 'figure/', cache.path = 'cache/',
+               fig.align = 'center', fig.height = 3, fig.width = 6.5,
+               show.signif.stars = FALSE)
+options(show.signif.stars = FALSE)
+
+
+atrplx <- read.table("atrplx.dat",
+                     as.is = TRUE)
+
+head(atrplx)
+colnames(atrplx) <- c("x", "y", "idk", "z")
+@
+
+\begin{enumerate}
+\item {\it Our text implies and others state outright that the BB, BW , and WW statistics reveal pretty much the same thing about spatial correlation. The joincount.mc function will carry out Monte Carlo tests based on the BB and WW statistics. We do not have an R formula for computing the BW statistic but it is possible to carry out a BW joincount test of spatial autocorrelation (or clustering) using Geary’s c.}
+
+\begin{enumerate}
+\item {\it Show the relationship between Geary’s c and BW.}
+\vspace{3in}
+
+\item {\it Carry out a test based on the BW statistics using geary.mc. The data file atrplx.dat will be emailed to you at your math department email addresses. The first 2 columns contain the spatial coordinates and the fourth column contains the Z values you need. Use the R handout to generate the necessary neighbors and list objects.}
+
+All tests are done using the one sided alternative.
+
+Let c = Geary's C statistic, which is a measure of similarity in responses, accounting for spatial proximity
+
+$H_{0}$: c = E[c] = no spatial autocorrelation (random pattern)
+
+$H_{A}$: c \textless E[c] = positive spatial autocorrelation (positive non-random pattern, positive systematic pattern)
+
+Note the alternative makes sense because in (a) we showed that Geary's c is equivalent to computing a BW statistic, which measures the number of BW connections. The fewer BW connections, the more BB/WW connections, indicating more similar responses at closer locations and is why the sign is opposite. 
+
+1000 Monte Carlo simulations led to a p-value of 0.127 using an observed Geary's C of 0.95. There is no evidence of a positive spatial autocorrelation in the responses. 
+
+
+
+<<prob1b, include = FALSE>>=
+#first compute number of "distance based" neighbors (vs. color based)
+#using lower and upper distance bounds from notes
+atrplx_nn <- dnearneigh(as.matrix(atrplx[,c(1,2)]), d1 = 0, d2 = 1)
+card(atrplx_nn)
+
+#calculate spatial weights -> "B" = binary
+atrplx_w <- nb2listw(atrplx_nn, style = "B")
+@
+
+<<prob1b.out>>=
+#do monte carlo simulation based test
+gc.out <- geary.mc(atrplx$z,atrplx_w, nsim = 999)
+
+gc.out
+
+# randomly shuffles response and re-assigns to atrplx_w 1000 times
+# calculate geary's c for each shuffle
+# plot the shuffled geary's c's and find the rank of that observed
+
+plot(gc.out, main = "MC Density of 1000 Permutations", xlab = "Geary's C")
+@
+
+\item %1c
+{\it Using the output from geary.mc compute BW and E[BW]. Do you expect BW \textless E[BW] or BW \textgreater E[BW] in the presence of positive spatial clustering of the plants? Why or why not?}
+
+<<prob1c>>=
+# computing the BW statistic using (a) and (b)
+
+#note third column has BW coding
+
+# the output of the dnearneigh() object gives the total number
+# of non-zero joints in the distance matrix, which is w_dot,dot
+
+w2dot <- 960
+z_mean <- mean(atrplx[,4])
+
+s2 <- (sum((atrplx[,4] - z_mean)^2))/(dim(atrplx)[1] - 1)
+
+# from (a), get to BW from c by multiplying c by s2*w2dot
+
+bw <- gc.out$statistic*s2*w2dot
+
+# use the observed proportion of blacks = n1 -> non-free sampling
+pi <- sum(atrplx[,4])/dim(atrplx)[1]
+
+e_bw <- pi*(1-pi)*w2dot
+@
+
+In the prescense of positive spatial clustering of plants I would expect BW \textless E[BW]. More B-W joins suggests fewer similar plants (meaning B-B or W-W) clustered. Positive spatial clustering of plants occurs when similar plants (B-B or W-W) are located closer together, thereby fewer dis-similar plants (B-W) being located closer together.
+
+The output from {\texttt geary.mc} resulted in a test statistic of \Sexpr{round(gc.out$statistic,3)}, leading to a BW test statistic of \Sexpr{bw}. 
+
+E[BW] = $\pi(1-\pi)*\Sigma_{i}\Sigma_{j}w_{ij}$ where $w_{ij}$ = $w_{\cdot\cdot}$
+
+Using non-free sampling, E[BW] = \Sexpr{round(pi,3)}*\Sexpr{1-round(pi,3)}*\Sexpr{w2dot} = \Sexpr{round(e_bw,3)}.
+
+BW is less than E[BW] under no spatial autocorrelation and aligns with what was proposed above given there was no evidence of spatial autocorrelation.
+
+<<prob1cx, echo = FALSE>>=
+gc.out_mean <- mean(gc.out$res)
+gc.out_obs <- gc.out$statistic
+@
+
+\item %1d
+{\it Reproduce the analysis I presented in class using the Atriplex data. Compare the results of the BW test to those of the BB and WW test that were discussed in class. Do these statistics all seem to indicate the same thing about spatial clustering of the plants.}
+
+The three tests do not all result in the same conclusion. Using the BW (c) statistic and the WW statistic, there is no evidence of positive spatial clustering (p-values of 0.125 and 0.414, respectively), though the magnitudes of the p-values differ quite a bit. Using the BB statistic, with a p-value of 0.02 there is strong evidence of positive spatial clustering.  
+
+<<prob1d>>=
+# first output is WW joins, second is BB
+atrplx_jc <- joincount.mc(as.factor(atrplx$z), atrplx_w, nsim = 999)
+
+@
+\newpage
+
+\item %1e
+
+{\it  For grins compute Moran’s I and compare that result to those above.}
+
+<<prob1e>>=
+atrplx_mi <- moran.mc(atrplx$z, atrplx_w, nsim = 999)
+atrplx_mi
+
+@
+
+Using Moran's I, there is some evidence of positive spatial autocorrelation with a p-value of \Sexpr{round(atrplx_mi$p.value,3)}, which falls between the amount of evidence for spatial autocorrelation found using Geary's C (BW) and the BB tests.
+
+
+\end{enumerate}
+
+\item {\it Categorize the following examples of spatial data as to their data type:}
+\begin{enumerate}
+\item %2a 
+{\it Elevations in the foothills of the Allegheny mountains.}
+
+Geostatistical
+
+\item %2b
+{\it Highest elevation within each state in the United States.}
+
+Lattice
+
+\item %2c
+{\it Concentration of a mineral in soil.}
+
+Geostatistical
+
+\item %2d
+{\it Plot yields in a uniformity trial.}
+
+Lattice
+
+\item %2e
+{\it Crime statistics giving names of subdivisions where break-ins occurred in the previous year and property loss values.}
+
+Point process
+
+\item %2f
+{\it Same as previous, but instead of the subdivisions, the individual dwelling, is identified.}
+
+Point process
+
+\item %2g
+{\it Distribution of oaks and pines in a forest stand.}
+
+Point process
+%Geostatistical
+\end{enumerate}
+\newpage
+
+\item %3
+{\it Show that Moran’s I is a scale-free statistic, i.e. Z(s) and $\lambda$ Z(s) yield the same value for any constant $\lambda \neq$ 0.}
+\vspace{4in}
+
+\item %4
+
+\begin{enumerate}
+\item %4a
+{\it Show the $Var(\bar{Y})$ = }
+
+\vspace{4in}
+
+\item %4b
+{\it Let n = 10 and ρ = 0.26. Compare and contrast a 95\% confidence interval for $\mu$ computed using the true standard deviation of Y and one computed assuming independence.}
+
+With n = 10 and $\rho$ = 0.26, a 95\% confidence interval accounting for the spatial correlation structure will be about twice the width of that found assuming independence. However, both have the same center and the same multiplier.
+
+
+{\bf Assuming Independence:}
+
+
+$\bar{y} \pm 1.96(\frac{\sigma^{2}}{10})^{1/2}$
+
+
+= $\bar{y} \pm \Sexpr{round(1.96/sqrt(10),2)}\sigma$
+
+
+{\bf Assuming Correlated:}
+
+
+$\bar{y} \pm 1.96(\frac{\sigma^{2}}{n}[1+(n-1)\rho])^{1/2})$
+
+
+= $\bar{y} \pm 1.96(\frac{\sigma^{2}}{10}[1+(10-1)*0.26])^{1/2})$
+
+
+= $\bar{y} \pm \Sexpr{round(1.96*sqrt((1+(10-1)*0.26)/10),2)}*\sigma$
+
+
+\item %4c 
+
+{\it Given independence, we know that Y is the ``best" estimator of $\mu$. One nice property it has is that it is a consistent estimator of the mean. Is Y a consistent estimator of the mean given the correlation structure above? Justify your answer.}
+\vspace{4in}
+
+\newpage
+\item %4d
+{\it Recall that effective sample size is a measure of the effect of correlation on inference. An equation for the effective sample size under the equicorrelation model is:}
+\begin{center}
+$n^{'} = \frac{n}{1+(n-1)\rho}$
+\end{center}
+
+
+{\it The effective sample size is defined to be the sample size $n^{'}$ of uncorrelated observations that provide the same information (in a sense) as a sample of n correlated observations.}
+
+\begin{enumerate}
+\item %4di
+
+{\it Compute the effective sample size when n = 10, 100, and 1000 and $\rho$ = 0.05, 0.1, 0.25, and 0.5.}
+
+<<prob4di, results = 'asis', echo = FALSE>>=
+n_prime <- function(t,p){
+  t/(1+(t-1)*p)
+}
+
+n <- c(10,100,1000)
+rho <- c(0.05, 0.1, 0.25, 0.5)
+
+n_prime.out <- matrix(0,nrow=length(n), ncol=length(rho))
+
+for(i in 1:length(n)){
+  for(j in 1:length(rho)){
+    n_prime.out[i,j] <- n_prime(n[i],rho[j])
+  }
+}
+
+n_prime.out <- data.frame(n_prime.out)
+rownames(n_prime.out) <- c("n10", "n100", "n1000")
+colnames(n_prime.out) <- c("rho0.05", "rho0.1",
+                           "rho0.25", "rho0.5")
+
+print(xtable(n_prime.out, align = "||l|l|l|l|l||"))
+@
+
+\item %4dii
+{\it Find lim $n^{'}$ as n $\rightarrow$ infinite.}
+
+\vspace{3in}
+
+\item %4diii
+
+{\it The effect is extreme here but we would not expect to see this type of correlation structure in a spatial setting. Why not?}
+
+We would not expect the equicorrelation structure in a spatial setting because the equicorrelation structure would assume that points are equally correlated, regardless of the distance between them. One of the major aspects of spatial data is that observations in closer proximity to each other tend to have more similar responses, which is not accounted for in the equicorrelation structure.
+
+\end{enumerate}
+\end{enumerate}
+
+\end{enumerate}
+
+\newpage
+
+\section*{R Code}
+<<prob1b, echo = TRUE, eval = FALSE>>=
+@
+<<prob1b.out, echo = TRUE, eval = FALSE>>=
+@
+<<prob1c, echo = TRUE, eval = FALSE>>=
+@
+<<prob1cx, echo = TRUE, eval = FALSE>>=
+@
+<<prob1d, echo = TRUE, eval = FALSE>>=
+@
+<<prob1e, echo = TRUE, eval = FALSE>>=
+@
+<<prob4di, echo = TRUE, eval = FALSE>>=
+@
+\end{document}
+

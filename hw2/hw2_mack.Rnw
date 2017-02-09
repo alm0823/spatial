@@ -1,0 +1,246 @@
+\documentclass{article}
+
+\usepackage{fancyhdr} % Required for custom headers
+\usepackage{lastpage} % Required to determine the last page for the footer
+\usepackage{extramarks} % Required for headers and footers
+\usepackage{graphicx} % Required to insert images
+\usepackage{hyperref}
+\usepackage{amsmath} %for binomial pdf
+\usepackage{parskip} % so that there's space bw paragraphs
+\usepackage{float}
+\usepackage{amsfonts}
+
+% Margins
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in 
+
+\linespread{1.1} % Line spacing
+
+% Set up the header and footer
+\pagestyle{fancy}
+\lhead{STAT 534: Spatial} % Top left header
+\chead{HW 2} % Top center header
+\rhead{Andrea Mack} % Top right header
+\lfoot{01/30/2017} % Bottom left footer
+\cfoot{} % Bottom center footer
+\rfoot{Page\ \thepage\ of\ \pageref{LastPage}} % Bottom right footer
+\renewcommand\headrulewidth{0.4pt} % Size of the header rule
+\renewcommand\footrulewidth{0.4pt} % Size of the footer rule
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+\setlength\parskip{0.5cm}
+\restylefloat{table}
+
+%----------------------------------------------------------------------------------------
+%	DOCUMENT STRUCTURE COMMANDS
+%	Skip this unless you know what you're doing
+%----------------------------------------------------------------------------------------
+
+% Header and footer for when a page split occurs within a problem environment
+\newcommand{\enterProblemHeader}[1]{
+\nobreak\extramarks{#1}{#1 continued on next page\ldots}\nobreak
+\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak
+}
+
+% Header and footer for when a page split occurs between problem environments
+\newcommand{\exitProblemHeader}[1]{
+\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak
+\nobreak\extramarks{#1}{}\nobreak
+}
+
+
+%----------------------------------------------------------------------------------------%
+
+
+
+\begin{document}
+
+<<setup, include = FALSE>>=
+require(spdep)
+require(xtable)
+require(knitr)
+require(ifultools)
+require(spatstat)
+data(redwood)
+opts_chunk$set(echo = FALSE, cache = FALSE, message = FALSE,
+               comment = NA, size = 'footnotesize', width = 80, dev = 'pdf',
+               dev.args = list(family = 'Palatino', pointsize = 11),
+               fig.path = 'figure/', cache.path = 'cache/',
+               fig.align = 'center', fig.height = 3, fig.width = 6.5,
+               show.signif.stars = FALSE)
+options(show.signif.stars = FALSE)
+
+
+@
+
+\begin{enumerate}
+\item {\it It was pointed out in class that, conditional on n events, event locations are uniformly dis- tributed for a homogeneous Poisson process. We will consider the simplest example of this. Consider a one-dimensional process on a transect of length L, (0,L]. Given that one event has occurred on the interval (0, L] what is the probability that it occurred in the subinterval (0, s] for s \textless L?}
+
+\vspace{2in}
+
+\item {\it We looked at an example of quadrat.test on the amacrine data set in class. We will use it to analyze another data set, called redwood. You can read about this in the spatstat help material. You will be using the quadrat.test function. You can also read about this function in the help material.}
+
+\begin{enumerate}
+\item {\it Read the help pages on the quadrat.test function. What null hypothesis do they claim to be testing?}
+
+The help page for {\texttt quadrat.test} suggest $H_{0}$ is complete spatial randomness for a given point pattern.
+
+\item {\it Use quadrat.test on the redwood data set.}
+
+<<prob2b, fig.height = 6, fig.width = 6>>=
+redwood.fit<-quadrat.test(redwood)
+plot(redwood.fit)
+redwood.fit
+@
+
+{\it The default partitioning of the grid is 5 × 5. Does that appear appropriate here? Justify your answer.}
+
+It was recommended to have at least 5 observations in each grid cell when using the $\chi^{2}$ distribution to approximate the p-value. Several cells have less than two seedleeings or saplings and so the 5X5 grid is not appropriate. A warning message also indicates the low cell count is a problem.
+
+\item {\it Redo the analysis using a 3 × 3 grid.}
+
+Using the 3X3 grid cell counts seem to be adequate to use the the $\chi^{2}$ distribution.
+
+<<prob2c>>=
+redwood.fit3<-quadrat.test(redwood,nx=3,ny=3)
+redwood.fit3
+@
+
+\item {\it Is the value of the test statistic $X^2$ indicative of clustering, CSR, or a regular pattern? Justify your answer. Note that I am only asking you to compare the observed value of $X^2$ to what you would expect under each of these three patterns. You do not need to calculate a P-value just yet.}
+
+The value of the $\chi^{2}_{8}$ test statistic is 22.8 which suggests spatial clustering. A test statistic of 8 is indicative of CSR (though that cannot be proved) and a test statistic below 8 is indicative of regularity.
+
+{\it The investigator suspected a clustered pattern and the plot would seem to be consistent with this. Rerun the test with alternative=``c" in the argument list. Give the p-value for the test and interpret the results. Does the test provide evidence against CSR and for clustering? Justify your answer.}
+
+<<prob2e>>=
+
+redwood.fit3c<-quadrat.test(redwood,nx=3,ny=3, alternative = "c")
+@
+The default alternative hypothesis is a two sided. Based on a p-value of \Sexpr{round(redwood.fit3c$p.value,5)}, there is strong evidence against CSR and for spatial clustering. 
+
+
+\item {\it We can plot the results of the fit.}
+
+{\it You will see a plot of the 3 × 3 grid. There are 3 numbers in each cell: the observed count (upper left), expected count under CSR (upper right), and a scaled residual (lower number). The sum of the scaled residuals is the $\chi^{2}$ statistic. Give the results of the test and using the plot indicate where CSR seems to break down, if it does.}
+
+<<prob3f, fig.height = 4, fig.width=4>>=
+plot(redwood.fit3c, main = "Redwood 3X3 - Ha: Clustered")
+red.stat <- round(sum(redwood.fit3c$residuals^2),3)
+@
+
+The observed $\chi^{2}$ statistic was \Sexpr{red.stat} which resulted in a p-value of \Sexpr{round(redwood.fit3c$p.value,5)} when compared to a $\chi^{2}_{8}$ distribution. There is strong evidence of spatial clustering. CSR appears to break down in cells (1,1); (2,1); (1,3); (2,3) as there is a large discrepancy between the expected and oberved cell counts. The scaled residuals are also larger in these cells. Note that under CSR, the expected cell counts are all the same. and spatial clustering is suggested (vs. regularity) because the cells have large discrepancies. Under regularity, there would be very little if no difference betwen the observed and expected counts. 
+
+\item {\it Quadrat size can be important. Repeat the analysis using a 2X2 grid. Give the results and compare to what we saw with the 3 × 3 grid.}
+
+<<prob3g>>=
+redwood.fit2c<-quadrat.test(redwood,nx=2,ny=2, alternative = "c")
+
+@
+
+Using a 2X2 grid, a $\chi^{2}_{3}$ test statistic of \Sexpr{round(redwood.fit2c$statistic,2)} resulted in a p-value of \Sexpr{round(redwood.fit2c$p.value,3)}. There is some evidence against CSR and for spaital clustering of the seedlings.
+
+There is less evidence for spatial clustering when using the 2X2 grid than using the 3X3 grid. As the number of cells decrease, it is less likely to see more discrepancies.
+
+
+\end{enumerate}
+
+\item {\it We will compare results from Monte Carlo procedures based on Poisson sampling and based on conditioning on the number of observed points. We will use the cells data set. The R code to accomplish that is shown below. Compare the two procedures. What do they indicate about the spatial pattern and why? Which procedure do you like best for this data set and why?}
+
+Both procedures indicate the observed average nearest neighbor distance is much farther than would be expected under CSR and is indicative of spatial regularity.
+
+<<prob3, fig.height = 6, fig.width = 6>>=
+data(cells)
+  hbar<-mean(nndist(cells))
+  #hbar
+  hbar.pois<-rep(0,1000)
+  hbar.cond<-rep(0,1000)
+  hbar.pois[1]<-hbar
+  hbar.cond[1]<-hbar
+  for(i in 2:1000){
+  # Poisson Monte Carlo
+  dat.pois<-rpoispp(42)#n=42; updates each time
+  hbar.pois[i]<-mean(nndist(dat.pois))
+  # Conditional Monte Carlo
+  dat.cond<-runifpoint(42)
+  hbar.cond[i]<-mean(nndist(dat.cond))}
+  par(mfrow=c(2,1))
+  hist(hbar.pois,prob=T,main="Poisson Monte Carlo")
+  abline(v=hbar)
+  hist(hbar.cond,prob=T,main="Conditional Monte Carlo")
+  abline(v=hbar)
+  # Poisson P-value
+  p.pvalue <- 2*sum(hbar.pois>=hbar)/1000
+  # Conditional P-value
+  c.pvalue <- 2*sum(hbar.cond>=hbar)/1000
+  par(mfrow=c(1,1))
+  @
+  
+  <<another, fig.height = 3, fig.width = 3>>=
+  hist(nndist(cells), main = "Observed Nearest Neighbor Distances")
+  @
+  
+I prefer the Conditional Monte Carlo procedure here because the simulated distribution is symmetric. 
+
+
+\item {\it Below is the frequency distribution of the number of trees per quadrat in a sample of 100 quadrats each of radius 6 m.
+}
+
+{\it The data were pooled for counts ≥ 5 to meet the assumptions of the method. Carry out a Poisson goodness-of-fit test based on an assumption of CSR. Discuss the results. The sample mean of the observed counts was 1.43.
+}
+
+A Poisson goodness of fit test was carried to assess evidence against a CSR process modeled by a Poisson(1.43) distribution. The formal hypothese are below:
+
+$H_{o}$: The distribution of counts is Poisson(1.43)
+
+$H_{a}$: The distribution of counts is not Poisson(1.43)
+
+<<prob.idk, results = 'asis'>>=
+  obs <- c(34, 33, 17, 7, 3, 6)
+  expect <- 100*dpois(c(0,1,2,3,4), lambda = 1.43)
+  test.fn <- function(e,o){
+    out <- ((o-e)^2)/e
+    return(out)
+  }
+  expect[6] <- 100-sum(expect[1:5])
+  test.ind <- c(rep(0,5))
+  for(i in 1:6){
+    test.ind[i] <- test.fn(expect[i], obs[i])
+  }
+  
+  test.stat <- sum(test.ind)
+  
+  #df = 6-2=4
+  
+  test.stat_p <- 1 - pchisq(test.stat, 5)
+  b <- data.frame(rbind(expect,obs))
+  rownames(b) <- c("Expected", "Observed")
+  colnames(b) <- c("0", "1", "2", "3", "4", "at least 5")
+  
+  print(xtable(b, align = "||l|l|l|l|l|l|l||"))
+  @
+  
+  The observed data resulted in a $\chi^{2}$ test statistic of \Sexpr{round(test.stat,3)}. Comparing the test statistic to a $\chi^{2}_{4}$ distribution resulted in a p-value of \Sexpr{round(test.stat_p,4)}. There is some evidence against the distribution of seedlings being Poisson(1.43).
+  
+  Clustering vs. regularity must be established by looking at the data. The expected counts are more distant than the observed counts which suggests clustering.
+  
+   \item {\it Suppose we have a realization of a spatial point process consisting of N event locations {s1, s2, · · · , sN }. Let Hi denote the distance between the ith event and the nearest neighboring event. The cumulative distribution function of H (the nearest event-event distance) is the G function. (This problem will be continued on the next homework assignment).}
+  
+  \begin{enumerate}
+  \item {\it What is the G function if the point process is CSR; i.e. what is G(h) = P (H $\leq$ h) ?}
+  
+  \vspace{1in}
+  
+  \item {\it Find the pdf of H.}
+  
+  \vspace{2in}
+  
+  \item {\it Find E[H] and Var(H). Hint: you found the pdf but before you start evaluating a gnarly integral take a close look at that pdf and see if you cannot identify the family of distributions it belongs to. If you can do that then you can use that knowledge to find the mean and variance.}
+  
+\end{enumerate}
+\end{enumerate}
+\end{document}
+

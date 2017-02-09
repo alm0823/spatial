@@ -1,0 +1,256 @@
+\documentclass{article}
+
+\usepackage{fancyhdr} % Required for custom headers
+\usepackage{lastpage} % Required to determine the last page for the footer
+\usepackage{extramarks} % Required for headers and footers
+\usepackage{graphicx} % Required to insert images
+\usepackage{hyperref}
+\usepackage{amsmath} %for binomial pdf
+\usepackage{parskip} % so that there's space bw paragraphs
+\usepackage{float}
+\usepackage{amsfonts}
+
+% Margins
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in 
+
+\linespread{1.1} % Line spacing
+
+% Set up the header and footer
+\pagestyle{fancy}
+\lhead{STAT 534: Spatial} % Top left header
+\chead{HW 4} % Top center header
+\rhead{Andrea Mack} % Top right header
+\lfoot{02/10/2017} % Bottom left footer
+\cfoot{} % Bottom center footer
+\rfoot{Page\ \thepage\ of\ \pageref{LastPage}} % Bottom right footer
+\renewcommand\headrulewidth{0.4pt} % Size of the header rule
+\renewcommand\footrulewidth{0.4pt} % Size of the footer rule
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+\setlength\parskip{0.5cm}
+\restylefloat{table}
+
+%----------------------------------------------------------------------------------------
+%	DOCUMENT STRUCTURE COMMANDS
+%	Skip this unless you know what you're doing
+%----------------------------------------------------------------------------------------
+
+% Header and footer for when a page split occurs within a problem environment
+\newcommand{\enterProblemHeader}[1]{
+\nobreak\extramarks{#1}{#1 continued on next page\ldots}\nobreak
+\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak
+}
+
+% Header and footer for when a page split occurs between problem environments
+\newcommand{\exitProblemHeader}[1]{
+\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak
+\nobreak\extramarks{#1}{}\nobreak
+}
+
+
+%----------------------------------------------------------------------------------------%
+
+
+
+\begin{document}
+
+<<setup, include = FALSE>>=
+require(spdep)
+require(xtable)
+require(knitr)
+require(ifultools)
+require(spatstat)
+opts_chunk$set(echo = FALSE, cache = FALSE, message = FALSE,
+               comment = NA, size = 'footnotesize', width = 80, dev = 'pdf',
+               dev.args = list(family = 'Palatino', pointsize = 11),
+               fig.path = 'figure/', cache.path = 'cache/',
+               fig.align = 'center', fig.height = 3, fig.width = 6.5,
+               show.signif.stars = FALSE)
+options(show.signif.stars = FALSE)
+
+
+@
+
+\begin{enumerate}
+\item %1
+{\it For $\lambda$ = 30 generate 9 realizations of CSR on the unit square. For each realization, construct a kernel estimate of $\lambda$(s). How do the estimated intensity functions compare to the constant intensity under CSR? What precautions does this exercise suggest with regard to interpreting estimates of intensity from a single realization (or data set)? The following R code will simultaneously produce the data and plots.}
+
+{\texttt par(mfrow=c(3,3))
+  for(i in 1:9) plot(density(rpoispp(30)))}
+{\it Provide me with the images.}
+
+<<prob1, fig.height=6, fog.width=6>>=
+par(mfrow=c(3,3))
+  for(i in 1:9) plot(density(rpoispp(30)))
+@
+
+\item %2
+{\it In class we looked at a heterogeneous Poisson process on the unit square with with intensity function:}
+
+\begin{center}
+$\lambda(x,u) = exp(5x + 2y)$
+\end{center}
+
+\begin{enumerate}
+\item %2a 
+{\it Simulate a realization of the process using the following R code.}
+
+%\texttt{sim.dat$\<$-rpoispp(function(x,y)exp(5*x + 2*y)}
+
+{\it Plot the results and comment.}
+
+The intensity is highest in the upper right corner, near (1,1), and lowest when x ranges from 0 to 0.4 and y ranges from 0 to 1. The locations of the points do not look random.
+
+<<prob2a>>=
+set.seed(897)
+sim.dat<-rpoispp(function(x,y){
+  exp(5*x + 2*y)
+      })
+  plot(sim.dat$x, sim.dat$y, xlab = "X", ylab = "Y", main = "Simulated from exp(5x + 2y) Intensity")
+
+@
+
+\item %2b
+{\it Plot simulation envelopes for the K function (or some suitable modification of it) and comment.}
+
+The plot below suggests strong evidence of clustering as hat(K(r)) - r is above the simulation envelope.
+
+<<prob2b, fig.height=4, fig.width=4>>=
+plot(envelope(sim.dat, fun = "Kest", correction = "iso", verbose = FALSE), .-r~r, main = "Sim Envelope
+expression(hat[K])r-r")
+@
+
+{\bf Andrea's Note: envelope of K(r) tells about reg.clustering, envelope of k11-k22 tells about random labelling (but also must equal k12) and k12=pih2 (indep) tells about independence.}
+
+\item %2c
+{\it Fit a trend model to your data using ppm. Provide me with the parameter estimates and associated standard errors.}
+
+<<prob2c, results='asis'>>=
+sim.ppm <- ppm(sim.dat,~x+y,correction="isotropic")  
+  
+sim.est <- c(-0.174,4.89,2.24)
+sim.se <- c(0.558,0.584,0.42015)
+
+ests <- data.frame(cbind(sim.est, sim.se))
+colnames(ests) <- c("Estimate", "S.E.")
+
+print(xtable(ests, align = "||l|l|l||"))
+  
+@
+
+ppm response is log(lambda) and explanatory variables are coordinates
+
+Section: Lilihood methods for fitting models of spatially varying intensity surfaces -- steve thinks this is neat
+
+\item %2d
+{\it Check the fit using quadrat.test. Use method=``MonteCarlo" instead of the large sample chi-squared test. Plot the results Discuss.}
+
+With a p-value of 0.56, there is no evidence against CSR after accounting for the heterogenetiy in the intensity parameter across the region.
+
+The largest discrepancies appear to be along the far right column when using the 5X5 grid, however, using Pearson's residual as a measure of the discrepancy between observed and expected show quite low discrepancies despite the seemingly large absolute difference in that column between observed and expected. 
+
+We see about half of the residuals are negative and half positive, giving mixed results in terms of clustering or regularity. This may be a reason we are getting no evidence against CSR.
+
+{\bf discuss what more?}
+
+
+<<prob2d>>=
+sim.quad <- quadrat.test(sim.ppm, method = "MonteCarlo")
+plot(sim.quad)
+
+@
+
+\item %2e
+{\it Compare these results from this model with those to a model fit under an assumption of CSR. Summarize the results. Provide me the model comparison results (AIC comparisons are fine).}
+
+{\bf The default correction appears to be border.}
+
+{\bf what is the alternative model called???}
+
+<<prob2e, results = 'asis'>>=
+sim.csr<-ppm(sim.dat,~1,correction="isotropic")
+#anova(sim.csr, sim.ppm,test="Chi")
+
+csr.aic <- AIC(sim.csr)
+ppm.aic <- AIC(sim.ppm)
+
+aic.all <- data.frame(cbind(csr.aic,ppm.aic))
+colnames(aic.all) <- c("CSR", "Trend")
+rownames(aic.all) <- c("AIC")
+
+print(xtable(aic.all, align = "||l|l|l||"))
+
+@
+
+Although we failed to reject CSR after accounting for the varying intensity, the trend model has a lower AIC than the model assuming CSR and also accounts for the varying intensity and so is prefered.
+
+\item %2f
+{\it Plot a nonparametric estimate of the intensity function. Compare the fitted surface you got using ppm with the nonparametric (kernel density estimate) surface in some suitable way.}
+
+{\bf suitable??}
+
+<<prob2f>>=
+polyg<-list(x=sim.dat$x,
+            y=sim.dat$y)
+sim.nonp<-ppp(sim.dat$x,sim.dat$y,window=sim.dat$window) # no marks
+
+plot(density(sim.nonp), xlab = "X", ylab = "Y", main = paste("Nonparam Est", "Intensity Fn"))
+
+@
+
+{\bf idk!}
+<<prob2fx, results='asis', eval=FALSE>>=
+nonp.aic <- AIC(sim.nonp)
+
+diagnose.ppp(sim.nonp,which="smooth")
+
+aic.all1 <- data.frame(cbind(ppm.aic,nonp.aic))
+colnames(aic.all1) <- c("PPM", "NonPara")
+rownames(aic.all1) <- c("AIC")
+
+print(xtable(aic.all1, align = "||l|l|l||"))
+
+
+@
+
+\end{enumerate}
+
+\item %3
+
+{\it Recall the use of the nncorr statistic in the Finland Pines data set. The distribution of heights (the marks) was of interest. We saw that the nearest neighbor correlation between heights was  0.1839798. We questioned whether or not this was unusual. Carry out a randomization test to assess this. You can use the rlabel command to scramble the marks if you want. Provide me with a histogram of the randomization distribution and a p-value. Discuss BRIEFLY your results. Provide me with your R-code, also. (Note - you need to extract the correlation from the nncorr output. Here is how to do that:
+}
+<<prob3, cache = TRUE>>=
+data("finpines")
+finpines.ht <- finpines$marks[,2]
+finht.nncor <- nncorr(finpines)[3,2]
+
+perm.nncor <- c(rep(0,10000))
+for(i in 1:10000){
+ht.r <- rlabel(finpines, labels = marks(finpines)[,2], permute = TRUE)
+perm.nncor[i] <- nncorr(ht.r)[3]
+}
+
+hist(perm.nncor)
+abline(v=finht.nncor, col = "red")
+
+pv <- (length(which(perm.nncor <= finht.nncor)== TRUE) + length(which(perm.nncor >= -finht.nncor) == TRUE))/length(perm.nncor)
+
+@
+
+$H_{0}:$ Pearson correlation = 0
+
+$H_{a}$: Pearson correlation $\neq$ 0
+
+The observed Pearson correlation between the nearest neighbor distance and the height was \Sexpr{round(finht.nncor,4)}. A permutation test based on 10000 permutations of height led to a two sided p-value of \Sexpr{round(pv,4)} which provides no evidence of a structured distribution of heights.
+
+
+\item %4
+\end{enumerate}
+
+\end{document}
+
