@@ -84,10 +84,26 @@ options(show.signif.stars = FALSE)
   for(i in 1:9) plot(density(rpoispp(30)))}
 {\it Provide me with the images.}
 
+In four of the nine intensity functions created under CSR, there appears to be clear clusters, shown by the yellow ``hot spots". Under CSR, we would not expect to see the clusters, and so the fact that these were created under CSR is concerning because a single realization under CSR may in fact violate CSR. Therefore, testing a null hypothesis of CSR using a single realization could lead to inaccurate conclusions. The inaccurate conclusions could happen many ways. If the true intensity function should be clustered, but the one CSR intensity function used to test is quite clustered, we would fail to reject CSR when we should have. If the true intensity function is CSR but the one CSR intensity function used to test the null hypothesis of CSR looks quite clustered, we may wrongly reject CSR.
+
 <<prob1, fig.height=6, fog.width=6>>=
+set.seed(123)
+out <- NULL
+out1 <- NULL
+out1n <- NULL
 par(mfrow=c(3,3))
-  for(i in 1:9) plot(density(rpoispp(30)))
+  for(i in 1:9){
+    out1 <- rpoispp(30)
+    out1n <- out1$n
+    out[i] <- mean(nndist(out1[i]))
+    plot(density(out1))
+  }
+
+#out*30
+
 @
+
+
 
 \item %2
 {\it In class we looked at a heterogeneous Poisson process on the unit square with with intensity function:}
@@ -106,7 +122,7 @@ $\lambda(x,u) = exp(5x + 2y)$
 
 The intensity is highest in the upper right corner, near (1,1), and lowest when x ranges from 0 to 0.4 and y ranges from 0 to 1. The locations of the points do not look random.
 
-<<prob2a>>=
+<<prob2a, fig.height = 4, fig.width = 4>>=
 set.seed(897)
 sim.dat<-rpoispp(function(x,y){
   exp(5*x + 2*y)
@@ -114,6 +130,9 @@ sim.dat<-rpoispp(function(x,y){
   plot(sim.dat$x, sim.dat$y, xlab = "X", ylab = "Y", main = "Simulated from exp(5x + 2y) Intensity")
 
 @
+
+
+\newpage
 
 \item %2b
 {\it Plot simulation envelopes for the K function (or some suitable modification of it) and comment.}
@@ -124,8 +143,6 @@ The plot below suggests strong evidence of clustering as hat(K(r)) - r is above 
 plot(envelope(sim.dat, fun = "Kest", correction = "iso", verbose = FALSE), .-r~r, main = "Sim Envelope
 expression(hat[K])r-r")
 @
-
-{\bf Andrea's Note: envelope of K(r) tells about reg.clustering, envelope of k11-k22 tells about random labelling (but also must equal k12) and k12=pih2 (indep) tells about independence.}
 
 \item %2c
 {\it Fit a trend model to your data using ppm. Provide me with the parameter estimates and associated standard errors.}
@@ -154,12 +171,8 @@ With a p-value of 0.56, there is no evidence against CSR after accounting for th
 
 The largest discrepancies appear to be along the far right column when using the 5X5 grid, however, using Pearson's residual as a measure of the discrepancy between observed and expected show quite low discrepancies despite the seemingly large absolute difference in that column between observed and expected. 
 
-We see about half of the residuals are negative and half positive, giving mixed results in terms of clustering or regularity. This may be a reason we are getting no evidence against CSR.
 
-{\bf discuss what more?}
-
-
-<<prob2d>>=
+<<prob2d, fig.height=6, fig.width=6>>=
 sim.quad <- quadrat.test(sim.ppm, method = "MonteCarlo")
 plot(sim.quad)
 
@@ -169,10 +182,7 @@ plot(sim.quad)
 {\it Compare these results from this model with those to a model fit under an assumption of CSR. Summarize the results. Provide me the model comparison results (AIC comparisons are fine).}
 
 {\bf The default correction appears to be border.}
-
-{\bf what is the alternative model called???}
-
-<<prob2e, results = 'asis'>>=
+<<prob2e, results = 'asis', echo = TRUE>>=
 sim.csr<-ppm(sim.dat,~1,correction="isotropic")
 #anova(sim.csr, sim.ppm,test="Chi")
 
@@ -192,18 +202,22 @@ Although we failed to reject CSR after accounting for the varying intensity, the
 \item %2f
 {\it Plot a nonparametric estimate of the intensity function. Compare the fitted surface you got using ppm with the nonparametric (kernel density estimate) surface in some suitable way.}
 
-{\bf suitable??}
+The blue represents negative residuals and the red represents positive residuals meaning that in blue regions the trend model is predicting fewer events than observed and in the red region the trend model is predicting more events than observed. 
 
-<<prob2f>>=
+Compared to the nonparametric intensity function, the trend model is much more extreme than the intensity function and has predicted ``hot spots" in areas that didn't have many observations. The trend model could be missing some predictors. The non-parametric function does much better in predicting more events in locations where more events were observed. That is, the upper right corner has the most events predicted, and the number of predicted events is slowly decreasing towards the lower left corner, which is what we observed in the data.
+
+<<prob2f, fig.height = 4, fig.width = 6>>=
 polyg<-list(x=sim.dat$x,
             y=sim.dat$y)
 sim.nonp<-ppp(sim.dat$x,sim.dat$y,window=sim.dat$window) # no marks
 
+par(mfrow=c(1,2))
 plot(density(sim.nonp), xlab = "X", ylab = "Y", main = paste("Nonparam Est", "Intensity Fn"))
+
+diagnose.ppm(sim.ppm, which = "smooth")
 
 @
 
-{\bf idk!}
 <<prob2fx, results='asis', eval=FALSE>>=
 nonp.aic <- AIC(sim.nonp)
 
@@ -246,10 +260,19 @@ $H_{0}:$ Pearson correlation = 0
 
 $H_{a}$: Pearson correlation $\neq$ 0
 
-The observed Pearson correlation between the nearest neighbor distance and the height was \Sexpr{round(finht.nncor,4)}. A permutation test based on 10000 permutations of height led to a two sided p-value of \Sexpr{round(pv,4)} which provides no evidence of a structured distribution of heights.
+The observed Pearson correlation between the nearest neighbor distance and the height was \Sexpr{round(finht.nncor,4)}. A permutation test based on 10000 permutations of height led to a two sided p-value of \Sexpr{round(pv,4)} which provides no evidence of a structured distribution of heights. Discussion with subject matter experts prior to data analysis may have lead to a one sided p-value.
 
 
 \item %4
+
+{\it Let’s derive a K function for something other than a CSR process. We will assume a Neyman- Scott process with the following properties.
+i The parent process is a homogeneous Poisson process with intensity  .
+ii The number of off pring produced by each parent (N) is homogeneous Poisson with
+intensity $\mu$.
+iii The position of each o↵spring is determined by a bivariate normal distribution with mean (0,0) (i.e. it is centered over the parent) and variance-covariance matrix  2I. Note that this implies that the x and y coordinates are determined independently of one another with the same variance.
+}
+
+See attached.
 \end{enumerate}
 
 \end{document}

@@ -117,6 +117,8 @@
   for(i in 1:9) plot(density(rpoispp(30)))}
 {\it Provide me with the images.}
 
+In four of the nine intensity functions created under CSR, there appears to be clear clusters, shown by the yellow ``hot spots". Under CSR, we would not expect to see the clusters, and so the fact that these were created under CSR is concerning because a single realization under CSR may in fact violate CSR. Therefore, testing a null hypothesis of CSR using a single realization could lead to inaccurate conclusions. The inaccurate conclusions could happen many ways. If the true intensity function should be clustered, but the one CSR intensity function used to test is quite clustered, we would fail to reject CSR when we should have. If the true intensity function is CSR but the one CSR intensity function used to test the null hypothesis of CSR looks quite clustered, we may wrongly reject CSR.
+
 \begin{knitrout}\footnotesize
 \definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
 
@@ -127,6 +129,8 @@
 
 
 \end{knitrout}
+
+
 
 \item %2
 {\it In class we looked at a heterogeneous Poisson process on the unit square with with intensity function:}
@@ -156,6 +160,9 @@ The intensity is highest in the upper right corner, near (1,1), and lowest when 
 
 \end{knitrout}
 
+
+\newpage
+
 \item %2b
 {\it Plot simulation envelopes for the K function (or some suitable modification of it) and comment.}
 
@@ -172,13 +179,11 @@ The plot below suggests strong evidence of clustering as hat(K(r)) - r is above 
 
 \end{knitrout}
 
-{\bf Andrea's Note: envelope of K(r) tells about reg.clustering, envelope of k11-k22 tells about random labelling (but also must equal k12) and k12=pih2 (indep) tells about independence.}
-
 \item %2c
 {\it Fit a trend model to your data using ppm. Provide me with the parameter estimates and associated standard errors.}
 
 % latex table generated in R 3.3.2 by xtable 1.8-2 package
-% Tue Feb  7 20:16:23 2017
+% Fri Feb 10 11:14:45 2017
 \begin{table}[ht]
 \centering
 \begin{tabular}{||l|l|l||}
@@ -204,10 +209,6 @@ With a p-value of 0.56, there is no evidence against CSR after accounting for th
 
 The largest discrepancies appear to be along the far right column when using the 5X5 grid, however, using Pearson's residual as a measure of the discrepancy between observed and expected show quite low discrepancies despite the seemingly large absolute difference in that column between observed and expected. 
 
-We see about half of the residuals are negative and half positive, giving mixed results in terms of clustering or regularity. This may be a reason we are getting no evidence against CSR.
-
-{\bf discuss what more?}
-
 
 \begin{knitrout}\footnotesize
 \definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
@@ -224,11 +225,22 @@ We see about half of the residuals are negative and half positive, giving mixed 
 {\it Compare these results from this model with those to a model fit under an assumption of CSR. Summarize the results. Provide me the model comparison results (AIC comparisons are fine).}
 
 {\bf The default correction appears to be border.}
+\begin{kframe}
+\begin{alltt}
+\hlstd{sim.csr}\hlkwb{<-}\hlkwd{ppm}\hlstd{(sim.dat,}\hlopt{~}\hlnum{1}\hlstd{,}\hlkwc{correction}\hlstd{=}\hlstr{"isotropic"}\hlstd{)}
+\hlcom{#anova(sim.csr, sim.ppm,test="Chi")}
 
-{\bf what is the alternative model called???}
+\hlstd{csr.aic} \hlkwb{<-} \hlkwd{AIC}\hlstd{(sim.csr)}
+\hlstd{ppm.aic} \hlkwb{<-} \hlkwd{AIC}\hlstd{(sim.ppm)}
 
-% latex table generated in R 3.3.2 by xtable 1.8-2 package
-% Tue Feb  7 20:16:23 2017
+\hlstd{aic.all} \hlkwb{<-} \hlkwd{data.frame}\hlstd{(}\hlkwd{cbind}\hlstd{(csr.aic,ppm.aic))}
+\hlkwd{colnames}\hlstd{(aic.all)} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlstr{"CSR"}\hlstd{,} \hlstr{"Trend"}\hlstd{)}
+\hlkwd{rownames}\hlstd{(aic.all)} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlstr{"AIC"}\hlstd{)}
+
+\hlkwd{print}\hlstd{(}\hlkwd{xtable}\hlstd{(aic.all,} \hlkwc{align} \hlstd{=} \hlstr{"||l|l|l||"}\hlstd{))}
+\end{alltt}
+\end{kframe}% latex table generated in R 3.3.2 by xtable 1.8-2 package
+% Fri Feb 10 11:14:45 2017
 \begin{table}[ht]
 \centering
 \begin{tabular}{||l|l|l||}
@@ -246,7 +258,9 @@ Although we failed to reject CSR after accounting for the varying intensity, the
 \item %2f
 {\it Plot a nonparametric estimate of the intensity function. Compare the fitted surface you got using ppm with the nonparametric (kernel density estimate) surface in some suitable way.}
 
-{\bf suitable??}
+The blue represents negative residuals and the red represents positive residuals meaning that in blue regions the trend model is predicting fewer events than observed and in the red region the trend model is predicting more events than observed. 
+
+Compared to the nonparametric intensity function, the trend model is much more extreme than the intensity function and has predicted ``hot spots" in areas that didn't have many observations. The trend model could be missing some predictors. The non-parametric function does much better in predicting more events in locations where more events were observed. That is, the upper right corner has the most events predicted, and the number of predicted events is slowly decreasing towards the lower left corner, which is what we observed in the data.
 
 \begin{knitrout}\footnotesize
 \definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
@@ -256,10 +270,15 @@ Although we failed to reject CSR after accounting for the varying intensity, the
 }
 
 
-
+\begin{kframe}\begin{verbatim}
+Model diagnostics (raw residuals)
+Diagnostics available:
+	smoothed residual field
+range of smoothed field =  [-46.09, 37.24]
+\end{verbatim}
+\end{kframe}
 \end{knitrout}
 
-{\bf idk!}
 
 
 \end{enumerate}
@@ -283,10 +302,19 @@ $H_{0}:$ Pearson correlation = 0
 
 $H_{a}$: Pearson correlation $\neq$ 0
 
-The observed Pearson correlation between the nearest neighbor distance and the height was -0.184. A permutation test based on 10000 permutations of height led to a two sided p-value of 0.1207 which provides no evidence of a structured distribution of heights.
+The observed Pearson correlation between the nearest neighbor distance and the height was -0.184. A permutation test based on 10000 permutations of height led to a two sided p-value of 0.1207 which provides no evidence of a structured distribution of heights. Discussion with subject matter experts prior to data analysis may have lead to a one sided p-value.
 
 
 \item %4
+
+{\it Let’s derive a K function for something other than a CSR process. We will assume a Neyman- Scott process with the following properties.
+i The parent process is a homogeneous Poisson process with intensity  .
+ii The number of off pring produced by each parent (N) is homogeneous Poisson with
+intensity $\mu$.
+iii The position of each o↵spring is determined by a bivariate normal distribution with mean (0,0) (i.e. it is centered over the parent) and variance-covariance matrix  2I. Note that this implies that the x and y coordinates are determined independently of one another with the same variance.
+}
+
+See attached.
 \end{enumerate}
 
 \end{document}

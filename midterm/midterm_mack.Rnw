@@ -1,0 +1,462 @@
+\documentclass{article}
+
+\usepackage{fancyhdr} % Required for custom headers
+\usepackage{lastpage} % Required to determine the last page for the footer
+\usepackage{extramarks} % Required for headers and footers
+\usepackage{graphicx} % Required to insert images
+\usepackage{hyperref}
+\usepackage{amsmath} %for binomial pdf
+\usepackage{parskip} % so that there's space bw paragraphs
+\usepackage{float}
+\usepackage{amsfonts}
+
+% Margins
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in 
+
+\linespread{1.1} % Line spacing
+
+% Set up the header and footer
+\pagestyle{fancy}
+\lhead{STAT 534: Spatial} % Top left header
+\chead{Exam 1} % Top center header
+\rhead{Andrea Mack} % Top right header
+\lfoot{03/10/2017} % Bottom left footer
+\cfoot{} % Bottom center footer
+\rfoot{Page\ \thepage\ of\ \pageref{LastPage}} % Bottom right footer
+\renewcommand\headrulewidth{0.4pt} % Size of the header rule
+\renewcommand\footrulewidth{0.4pt} % Size of the footer rule
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+\setlength\parskip{0.5cm}
+\restylefloat{table}
+
+%----------------------------------------------------------------------------------------
+%	DOCUMENT STRUCTURE COMMANDS
+%	Skip this unless you know what you're doing
+%----------------------------------------------------------------------------------------
+
+% Header and footer for when a page split occurs within a problem environment
+\newcommand{\enterProblemHeader}[1]{
+\nobreak\extramarks{#1}{#1 continued on next page\ldots}\nobreak
+\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak
+}
+
+% Header and footer for when a page split occurs between problem environments
+\newcommand{\exitProblemHeader}[1]{
+\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak
+\nobreak\extramarks{#1}{}\nobreak
+}
+
+
+%----------------------------------------------------------------------------------------%
+
+
+
+\begin{document}
+
+<<setup, include = FALSE>>=
+require(spdep)
+require(xtable)
+require(knitr)
+require(ifultools)
+require(spatstat)
+require(geoR)
+require(xtable)
+require(splancs)
+opts_chunk$set(echo = TRUE, cache = FALSE, message = FALSE,
+               comment = NA, size = 'footnotesize', width = 80, dev = 'pdf',
+               dev.args = list(family = 'Palatino', pointsize = 11),
+               fig.path = 'figure/', cache.path = 'cache/',
+               fig.align = 'center', fig.height = 4, fig.width = 6.5,
+               show.signif.stars = FALSE)
+options(show.signif.stars = FALSE)
+
+
+@
+
+\begin{enumerate}
+\item %1
+{\it Suppose we have an intrinsically stationary process with semivariogram:}
+
+\vspace{1in}
+
+{\it for any sites si,i = 1,···,n and for any constants ai,i = 1,···,n with  $\Sigma_{i=1,...,n}$ ai = 0 but you did it under an assumption of second order stationarity. We will now establish it in general.}
+
+<<readin, include = FALSE>>=
+wt <- read.table("wheat.txt", header = TRUE)
+head(wt)
+summary(wt)
+str(wt)
+wt <- data.frame(apply(wt,2,function(t){
+  as.numeric(as.character(t))
+}))
+
+wheat.dat <- wt
+wheat.geodat <- as.geodata(wheat.dat, coords.col=1:2,data.col=3)
+
+# warnings for eliminating rows with NAs
+
+wheat.grid <- expand.grid(seq(0,50,l=25),
+                           seq(0,30,l=25))
+
+
+@
+
+\begin{enumerate}
+\item%1a
+{\it First show that:}
+
+\vspace{3in}
+
+\item%1b
+{\it Now take expectations of both sides to establish the result.}
+
+\vspace{3in}
+\end{enumerate}
+\newpage
+
+\item %2
+{\it Let $X_{o} \sim Gamma(\alpha,\beta)$ with the parameterization:}
+
+\vspace{0.5in}
+
+{\it and 0 elsewhere. Let $X_{i} \sim \gamma(\alpha_{i}, \beta)$ for i = 1, · · · , n. We construct a one-dimensional regularly spaced random field at locations i = 1, · · · , n}
+
+\begin{center}
+$Z(s_{i}) = X_{o} + X_{i}; i = i,...,n$
+\end{center}
+
+{\it You can assume that $X_{o}, X_{1}, ..., X_{n}$ are independent.}
+
+\begin{enumerate}
+\item %2a
+{\it What is the distirbution of $Z(s_{i})$?}
+
+\vspace{2in}
+
+\item %2b
+{\it Find E(Z(si)) and Var(Z(Si)). You can use known properties of the Gamma distribution to answer this question, i.e. you can just write down the answer if you know it or can find it.}
+
+\vspace{2in}
+
+\item %2c
+{\it Find $Cov[Z(S_{i}), Z(s_{j})]$.}
+
+\vspace{2in}
+
+\item %2d
+{\it Is this a second-order stationary process? Justify your answer.}
+
+\vspace{2in}
+\end{enumerate}
+
+\item %3
+{\it The lansing data set in the spatstat package contains spatial locations of several different species of trees. We will be looking and comparing the distributions of black oaks and maples.}
+
+<<prob3, fig.height=4, fig.width=4, warning = FALSE>>=
+data(lansing)
+blackoak<-split(lansing)$blackoak
+maple<-split(lansing)$maple
+  
+lansing.sub <- lansing[which(lansing$marks == c("blackoak", "maple"))]
+lansing.sub$marks <- factor(lansing.sub$marks, levels = c("blackoak", "maple"))
+plot(lansing.sub, main = "Lansing Blackoak and Maple Data")
+  
+
+@
+
+{\it The rectangular region is a unit square. Use the isotropic edge corrected version when applicable below. Answer the following questions. You will be computing several simulation envelopes below. Be patient and keep nsim=99, the default.}
+
+\begin{enumerate}
+\item %3a
+{\it What does the K function measure?}
+
+The K function measures second order properties (var/cov) of a spatial point process.
+
+According to the help file, the K function estimates the ``inter-dependence" or ``clustering" of a stationary point pattern dataset. The estimate of K is used to infer the spatial pattern.
+
+Paraphrased from the help file:
+
+Where $\lambda$ is the intensity of the process and r is the distance, $\lambda$K(r) is the expected numer of additional random points within a distance of r of a typical random point of X.
+
+
+\item %3b
+{\it It is often easier to interpret the L function than the K function. Based on the L function do the blackoaks appear to be clustered or do they appear to be regularly distributed? Do the maples appear to be clustered or do they appear to be regularly distributed? Justify your answer. Simulation envelopes will help you give a better answer to this question.}
+
+L transforms the K function by taking the square root of K. Under CSR, K is a parabola and by taking the square root of K (L) we can assess deviations from a straight line vs. a parabola when evaluating the CSR assumed hypothesis.
+
+<<prob3b, fig.height=4, fig.width=6.5>>=
+par(mfrow=c(1,2))
+plot(envelope(blackoak,fun="Lest", correction="iso", verbose = FALSE), 
+     main = "Blackoak")
+plot(envelope(maple, fun="Lest", correction="iso", verbose = FALSE),
+     main = "Maple")
+
+@
+
+I used the isotrophic edge corrections. Both the blackoak and maple trees appear to be clustered as the observed number of additional events within almost all distances r is more than expected under CSR for both the blackoak and maple trees. Note that I plotted the simulation envelopes and the observed is outside of the simulation envelopes for most distances as well in both plots.  
+
+
+\item %3c
+{\it Compare the two L functions and discuss whether or not the 2 processes appear to be the same. You can use the results from (a) but you should also look at the difference more formally using the following also provided in an attached script file.}
+
+The two L functions do not appear to be the same as the D function is outside of the simulation envelopes for short distances.
+
+The density plots shows the maple point process and the blackoack point process are near complements of each other, with different patterns and thus we might expect different L functions. Note the frequency of maples is much higher than that of the blackoak within the corresponding clusters.
+
+<<prob3c, fig.height=4, fig.width=4>>=
+#r code embedded in midterm
+#chose to output code from file
+# specify radii
+       h<-seq(0,.5,l=100)
+       # get coordinates
+       tree.poly<-list(x=c(blackoak$x,maple$x),y=c(blackoak$y,maple$y))
+       # recompute the K functions
+       kblackoak<-khat(as.points(blackoak),bboxx(bbox(as.points(tree.poly))),h)
+       kmaple<-khat(as.points(maple),bboxx(bbox(as.points(tree.poly))),h)
+       # get the differences
+       k.diff<-kblackoak - kmaple
+       # generate the envelope
+       env<-Kenv.label(as.points(blackoak),as.points(maple),
+       bboxx(bbox(as.points(tree.poly))),nsim=99,s=h, quiet = TRUE)
+       # plot the results
+       #plot(h,seq(-0.15,0.05,l=length(h)),type="n",ylab="Kdiff",
+       #main="Envelopes for Kdiff")
+       #lines(h,k.diff)
+       #lines(h,env$low,lty=2)
+       #lines(h,env$up,lty=2)
+       #abline(h=0)
+
+# r code sent as sepearate file
+Lblackoak<-envelope(blackoak,fun=Lest,correction="iso")
+plot(Lblackoak,.-r~r,legend=F)
+Lmaple<-envelope(maple,fun=Lest,correctin="iso")
+plot(Lmaple,.-r~r,legend=F)
+
+# specify radii
+h<-seq(0,.5,l=100)
+# get coordinates
+tree.poly<-list(x=c(blackoak$x,maple$x),y=c(blackoak$y,maple$y))
+# recompute the K functions
+kblackoak<-khat(as.points(blackoak),bboxx(bbox(as.points(tree.poly))),h)
+kmaple<-khat(as.points(maple),bboxx(bbox(as.points(tree.poly))),h)
+# get the differences
+k.diff<-kblackoak - kmaple
+# generate the envelope
+env<-(Kenv.label(as.points(blackoak),as.points(maple),
+bboxx(bbox(as.points(tree.poly))),nsim=99,s=h, quiet = TRUE))
+# plot the results
+plot(h,seq(-0.15,0.05,l=length(h)),type="n",ylab="Kdiff",
+main="Envelopes for Kdiff")
+lines(h,k.diff)
+lines(h,env$low,lty=2)
+lines(h,env$up,lty=2)
+abline(h=0)
+
+Kenv<-envelope(lansing,Kcross, i="maple",j="blackoak", verbose = FALSE)
+plot(Kenv,sqrt(./pi)-r~r,ylab="Lij - h",main="Cross L Function - Maple
+and Black Oak",legend=F)
+
+plot(density(blackoak))
+plot(density(maple))
+
+
+@
+
+\item %3d
+{\it Plot Lij − h versus h for black oaks and maples.}
+<<prob3d>>=
+Kplot<-envelope(lansing,Kcross,i="blackoak",j="maple", verbose = FALSE)
+plot(Kplot,sqrt(./pi)-r~r,ylab="Lij - h",main="Cross L Function",legend=F)
+       
+@
+
+{\it What type of relationship between the point patterns of the two species of trees is indicated by this plot? Justify your answer.}
+
+Because the observed Lij - h curve is below the theoretical (including below the corresponding simulation envelopes), the plot indicates the two species of trees are inhibiting the growth of each other, e.g., we do not expect to see many blackoaks near a cluster of maples.
+
+\item %3e
+{\it Based on the above, comment on the null hypotheses of independence and random labeling.}
+
+{\bf Independence}
+$H_{o}$: The spatial locations and the binary marks are determed simultaneously and independently of one another, meaning as $K_{ij}(h)$ is defined in the notes at the top of page 38 can be simplified to $K(h)$ = $\pi*h^{2}$. This implies the expected number of additional trees within distance h of one species of trees is the same regardless of which species is of interest and only depends on the distance considered, h.
+
+The plot in (d) suggests evidence against the null hypothesis of independence and evidence for inhibition.
+
+Mathematically this is violated because under the null hypothesis $E[K_{ij}(h)]$ = h.
+
+{\bf Random Labelling}
+$H_{o}$: Locations arise from a univariate point process and the labels are determined by a process similar to random thinning, where the label is determined by a Bernoulli trial at each location. Where 1 indicates a blackoak and 2 indicates a maple, the null hypothesis corresponds to $K_{11} = K_{22} = K_{12} = K$.
+
+The Kdiff plot in (c) suggests $K_{11} \neq K_{22}$, which should hold under random labelling. Therefore, random labelling of the process is also not suggested.
+
+%Plots of $L_{11}$ and $L_{22}$ both indicate spatial clustering. Inhibition of the growth of one species might suggest clustered growth of another species, also suggesting clustering by species. These three do not suggest $K_{11}$, $K_{22}$, $K_{12}$, nor K differ and so we would not find evidence against random labelling. 
+
+\end{enumerate}
+
+\item %4
+{\it You were sent the wheat data set on a previous homework assignment. You want to predict the value of Z (yield) at an arbitrary location. Assume a pure nugget effect model.}
+
+\begin{enumerate}
+\item %4a
+{\it What are the kriging weights and what is the predicted value?}
+
+<<prob4a, quiet = TRUE>>=
+plot(wheat.variog <- variog(wheat.geodat),
+     main = "Empirical Semivariogram")
+wheat.dist <- as.matrix(dist(wheat.geodat$coords))
+d <- dim(wheat.dist)
+
+# what is the nugget?
+# using empirical right now
+Sigma <- diag(var(wheat.geodat$data), nrow = d[1], ncol = d[1])
+
+a <- c(rep(1,d[1]))
+
+Sigma.star <- as.matrix(cbind((rbind(Sigma,a)),c(a,0)),
+                        nrow = 225, ncol = 225)
+str(Sigma.star)
+dim(Sigma.star)
+
+newx <- runif(1,min(wheat.geodat$coords[,1]), max(wheat.geodat$coords[,1]))
+newy <- runif(1,min(wheat.geodat$coords[,2]), max(wheat.geodat$coords[,2]))
+
+sigma.vec <- as.matrix(dist(rbind(wheat.geodat$coords, c(newx,newy))))
+sigma.vec <- sigma.vec[225,]
+
+sigma.star <- c(rep(0,224),1)
+lambda.star <- solve(Sigma.star) %*% sigma.star
+lambda.star <- round(lambda.star,4)
+
+p.ok <- sum(lambda.star[-225]*wheat.geodat$data)
+# the predicted value is just the mean
+
+# note in pure nugget cov.pars shouldn't matter
+@
+
+The predicted value is the mean, \Sexpr{p.ok}, and all 224 of the weights are \Sexpr{lambda.star[1]}.
+
+\item %4b
+{\it What is the estimate of the sill?}
+
+Note the sill is the nugget in a pure nugget model. The estimate of the sill is the estimate of the nugget, which was \Sexpr{var(wheat.geodat$data)}.
+
+\item %4c
+{\it What is the kriging standard error (note that this is a {\bf prediction} error)?}
+
+<<prob4c>>=
+c0 <- Sigma[1,1]
+
+sigma2.ok <- c0 - sum(lambda.star*sigma.star)
+# took sqrt of sigma2.ok for se
+@
+
+The kriging standard error is \Sexpr{sqrt(sigma2.ok)}.
+\end{enumerate}
+
+\item %5
+
+{\it Carbon-Nitrogen data example: We looked at estimating the semivariogram of the residuals from a simple linear regression model of total carbon on total nitrogen in class. We used gls to do this (as part of incorporating a spatial covariance structure into the regression) specifying an {\bf exponential} covariance model and estimating the parameters using both {\bf maximum likelihood and REML}. Let's check to see what the lik.fit function in the geoR package would return as parameter estimates (nugget, practical range, and partial sill) and see if the results are comparable. Some of the relevant R code is included in the attached script file. Compare the estimates on page 11 of the Spatial Regression notes and the estimates you get out of lik.fit. Use the same starting values.}
+
+<<prob5, cache=TRUE>>=
+CN.dat <- read.table("CN.dat", header = TRUE)
+
+pred.grid<-expand.grid(seq(-50,550,l=100),seq(-15,330,l=100))
+
+TC.geodat<-as.geodata(CN.dat,coords.col=1:2,data.col=4)
+
+
+# Problem 5
+
+# get the CN data
+names(CN.dat)<-c("x","y","tn","tc","cn")
+#attach(CN.dat)
+CN.lm<-lm(tc~tn, data = CN.dat)
+resids<-residuals(CN.lm)
+# convert to a geodata object 
+resids.dat<-cbind(CN.dat$x,CN.dat$y,resids)
+resids.dat<-data.frame(resids.dat)
+names(resids.dat)<-c("x","y","resids")
+resids.geodat<-as.geodata(resids.dat,coords.col=1:2,data.col=3)
+
+
+# now fit the models. 
+
+# gls initial params = c(range,nugget/sill)
+
+# likfit initial params = c(sill-nugget, range/3)
+
+# problem: NEED sill and nugget, not proportion
+# look back at variog on p.9 to get corresponding
+# starting values
+# looks like sill is about 1.2
+# this means nugget is about 1.2*0.4=0.48
+# needed to do this to have similar starting values
+# as those in the notes
+
+range.init <- 15
+nugget.init <- 0.48
+sill.init <- 1.2
+
+resids.ML <- likfit(resids.geodat, resids.geodat$coords,
+                     resids.geodat$data, cov.model = "exponential",
+                     ini.cov.pars = c(sill.init-nugget.init,range.init/3),
+                    fix.nugget = FALSE, nugget = nugget.init,
+                    lik.method = "ML", hessian = TRUE, messages = FALSE)
+
+resids.REML <- likfit(resids.geodat, resids.geodat$coords,
+                     resids.geodat$data, cov.model = "exponential",
+                     ini.cov.pars = c(sill.init-nugget.init,range.init/3),
+                    fix.nugget = FALSE, nugget = nugget.init,
+                    lik.method = "REML", hessian = TRUE, messages = FALSE)
+
+resids.ML$cov.pars
+resids.ML$nugget
+
+resids.REML$cov.pars
+
+
+@
+
+<<se.calc, include = FALSE, echo = FALSE>>=
+# note neither confint or intervals work for the likfit objects
+phiMLse <- sqrt(solve(resids.ML$info.minimisation.function$hessian)[1,1])
+phiREMLse <- sqrt(solve(resids.REML$info.minimisation.function$hessian)[1,1])
+#phi, ratio of sigma^2 over tau^2
+
+ciML <- resids.ML$cov.pars[2]*3 + c(-1,1)*2*phiMLse[1]
+
+@
+
+{\bf REML}
+
+The table on p.11 of the notes using gls includes the proportion of the sill that is due to the nugget effect (estimated to be 0.356 with a confidence interval of 0.194 to 0.559). The gls function estimated the nugget effect to be 0.000621. Likfit estimated the nugget effect to be \Sexpr{round(resids.REML$nugget,5)}, and so the results are similar.
+
+Gls estimated the sill to be 0.00177 with a confidence interval ranging from 0.0013 to 0.00215. Likfit estimated the partial sill to be \Sexpr{round(resids.REML$cov.pars[1],5)} and thus the sill to be \Sexpr{round(resids.REML$cov.pars[1],5)} +  \Sexpr{round(resids.REML$nugget,5)} = \Sexpr{round(resids.REML$cov.pars[1] + resids.REML$nugget,5)}. Again, the likfit estimate falls within the confidence interval based on the gls estimate and the results between gls and likfit are comparable.
+
+Gls estimated the practical range to be 175.089 with a confidence interval ranging from 58.49 to 524.131. Likfit estimated the practical range to be 3*\Sexpr{round(resids.REML$cov.pars[2],2)} = \Sexpr{round(resids.REML$cov.pars[2]*3,2)}. We see again the results are comparable. 
+
+%I was able to figure out how to calculate the standard error of phi from likfit, which was \Sexpr{phiREMLse}. A confidence interval using this the se of phi from likfit would be similar in width to the confidence interval using the se of phi from gls.
+
+
+{\bf MAXIMUM LIKLIHOOD}
+
+Gls estimated the nugget to be $0.00167*0.363$ = \Sexpr{round(0.00167*0.363,6)} (proportion of the sill that is due to the nugget was estimated to be 0.363 with a confidence interval of 0.196 to 0.571). Likfit estimated the nugget to be \Sexpr{round(resids.ML$nugget,6)}.
+
+Gls estimated the sill to be 0.00167 with a confidence interval ranging from 0.00121 to 0.0029. Likfit estimated the partial sill to be \Sexpr{round(resids.ML$cov.pars[1],5)} and thus the sill to be \Sexpr{round(resids.ML$cov.pars[1],5)} +  \Sexpr{round(resids.ML$nugget,5)} = \Sexpr{round(resids.ML$cov.pars[1] + resids.ML$nugget,5)}. 
+
+Gls estimated the practical range to be 144.929 with a confidence interval ranging from 58.588 to 358.515. Likfit estimated the practical range to be 3*\Sexpr{round(resids.ML$cov.pars[2],2)} = \Sexpr{round(resids.ML$cov.pars[2]*3,2)}. 
+
+%My attempt of a confidence interval forphi from likfit was \Sexpr{ciML[1]} to \Sexpr{ciML[2]}. A confidence interval using this the se of phi from likfit is would be similar in width to the confidence interval using the se of phi from gls.
+
+We see again the results are comparable for all three parameters whether using likfit and ML or gls and ML.
+
+
+\end{enumerate}
+\end{document}
+

@@ -1,0 +1,272 @@
+\documentclass{article}
+
+\usepackage{fancyhdr} % Required for custom headers
+\usepackage{lastpage} % Required to determine the last page for the footer
+\usepackage{extramarks} % Required for headers and footers
+\usepackage{graphicx} % Required to insert images
+\usepackage{hyperref}
+\usepackage{amsmath} %for binomial pdf
+\usepackage{parskip} % so that there's space bw paragraphs
+\usepackage{float}
+\usepackage{amsfonts}
+
+% Margins
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in 
+
+\linespread{1.1} % Line spacing
+
+% Set up the header and footer
+\pagestyle{fancy}
+\lhead{STAT 534: Spatial} % Top left header
+\chead{HW 7} % Top center header
+\rhead{Andrea Mack} % Top right header
+\lfoot{03/06/2017} % Bottom left footer
+\cfoot{} % Bottom center footer
+\rfoot{Page\ \thepage\ of\ \pageref{LastPage}} % Bottom right footer
+\renewcommand\headrulewidth{0.4pt} % Size of the header rule
+\renewcommand\footrulewidth{0.4pt} % Size of the footer rule
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+\setlength\parskip{0.5cm}
+\restylefloat{table}
+
+%----------------------------------------------------------------------------------------
+%	DOCUMENT STRUCTURE COMMANDS
+%	Skip this unless you know what you're doing
+%----------------------------------------------------------------------------------------
+
+% Header and footer for when a page split occurs within a problem environment
+\newcommand{\enterProblemHeader}[1]{
+\nobreak\extramarks{#1}{#1 continued on next page\ldots}\nobreak
+\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak
+}
+
+% Header and footer for when a page split occurs between problem environments
+\newcommand{\exitProblemHeader}[1]{
+\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak
+\nobreak\extramarks{#1}{}\nobreak
+}
+
+
+%----------------------------------------------------------------------------------------%
+
+
+
+\begin{document}
+
+<<setup, include = FALSE>>=
+require(spdep)
+require(xtable)
+require(knitr)
+require(ifultools)
+require(spatstat)
+require(geoR)
+require(xtable)
+opts_chunk$set(echo = TRUE, cache = FALSE, message = FALSE,
+               comment = NA, size = 'footnotesize', width = 80, dev = 'pdf',
+               dev.args = list(family = 'Palatino', pointsize = 11),
+               fig.path = 'figure/', cache.path = 'cache/',
+               fig.align = 'center', fig.height = 4, fig.width = 6.5,
+               show.signif.stars = FALSE)
+options(show.signif.stars = FALSE)
+
+
+@
+
+\begin{enumerate}
+\item %1
+{\it A data set (wheat.txt) has been sent to you. The data set contains yields of wheat recorded at spatial coordinates. Note that the header is x, y, and z with z being the yields. We will need a couple of different data object types. Pay attention to the R code below. Do not worry about anisotropy.}
+
+<<readin>>=
+wt <- read.table("wheat.txt", header = TRUE)
+require(geoR)
+head(wt)
+summary(wt)
+str(wt)
+wt <- data.frame(apply(wt,2,function(t){
+  as.numeric(as.character(t))
+}))
+
+wheat.dat <- wt
+wheat.geodat <- as.geodata(wheat.dat, coords.col=1:2,data.col=3)
+
+# warnings for eliminating rows with NAs
+
+wheat.grid <- expand.grid(seq(0,50,l=25),
+                           seq(0,30,l=25))
+
+
+@
+
+\begin{enumerate}
+\item%1a
+{\it Plot the data and comment on the results.}
+
+There appears to be a trend in both the east-west and north-south directions. The data are skewed left. Quantiles associated with the blue color are clustered mostly at high X coordinate values and low Y coordinate values.
+
+<<prob1a, fig.height = 4, fig.width = 6>>=
+plot(wheat.geodat)
+@
+
+\item 
+{\it Produce a plot of the empirical semivariogram of the wheat yields. Can this plot be trusted for estimation of semivariogram parameters to be used in kriging. Why or why not?}
+
+In the presence of a trend, which we saw in (a), the empirical semivariogram estimator is biased.
+<<prob1b, fig.height = 4, fig.width = 6>>=
+wheat.variog <- variog(wheat.geodat, max.dist = max(dist(wheat.geodat$coords)), 
+                    uvec = 30, messages = FALSE)
+
+plot(wheat.variog, main = "Empirical Semivariogram")
+
+@
+
+\item
+{\it We will use the surf.ls function in the spatial library to fit a quadratic trend model to the yields by ordinary least squares and plot the empirical semivariogram of the residuals. Fit an appropriate semivariogram model to the semivariogram using your method of choice. Justify your final selection.}
+
+I used the REML method because theoretically it provides valid standard errors if the assumptions are met (p. 24) and REML ensures positive variance estimates. I used initial covariance parameters estimated ``by eye" from the empirical semi-variogram.
+
+I considered all the exponential, spherical, and gaussian models. The final model I will choose is the spherical model because the corresponding estimates are much more reasonable than either the exponential or gaussian model estimates.
+
+%The initial plot shows fewer points on the edges of the east-west directions than in the center of the east-west directions. However, there does not appear to be any unusual points and so I will choose the ``classical" method of estimation, although both are plotted below.
+
+<<prob1c>>=
+require(spatial)
+wheat.ls<-surf.ls(2,wheat.dat) # fits a second order polynomial trend surface
+resid.dat<-cbind(wheat.dat$x,wheat.dat$y,residuals(wheat.ls))
+resid.geodat<-as.geodata(resid.dat,coords.col=1:2,data.col=3)
+
+plot(resid.geodat)
+
+par(mfrow=c(1,2))
+
+#no outliers, use classical
+resid.class <- variog(resid.geodat, coords = resid.geodat$coords, data = resid.geodat$data, uvec = 30,
+            estimator.type = "classical", messages = FALSE)
+plot(resid.class)
+#not attaining sill
+
+#cov.pars=(partialsill= 42-20, phi = 50)
+#cov.model = "exponential"
+#fix.nugget = TRUE -- it is quite stable?
+#nugget = 20
+
+exp.ml <- likfit(resid.geodat, ini=c(22,50/3), fix.nugget = TRUE, nugget = 20,
+                 cov.model = "exponential")
+
+exp.reml <- likfit(resid.geodat, ini=c(22,50/3), fix.nugget = TRUE, nugget = 20,
+                 cov.model = "exponential", lik.method = "REML")
+
+exp.ml$cov.pars
+exp.reml$cov.pars
+
+sph.ml <- likfit(resid.geodat, ini=c(22,50), fix.nugget = TRUE, nugget = 20,
+                 cov.model = "sph", messages = FALSE)
+
+sph.reml <- likfit(resid.geodat, ini=c(22,50), fix.nugget = TRUE, nugget = 20,
+                 cov.model = "sph", lik.method = "REML", messages = FALSE)
+
+sph.ml$cov.pars
+sph.reml$cov.pars
+
+gaus.ml <- likfit(resid.geodat, ini=c(22,50/sqrt(3)), fix.nugget = TRUE, nugget = 20,
+                 cov.model = "gau", messages = FALSE)
+gaus.reml <- likfit(resid.geodat, ini=c(22,50/sqrt(3)), fix.nugget = TRUE, nugget = 20,
+                 cov.model = "gau", lik.method = "REML", messages = FALSE)
+
+gaus.ml$cov.pars
+gaus.reml$cov.pars
+
+@
+
+\item
+{\it Predict yields using universal kriging and ordinary kriging. Use the parameter estimates from the residual semivariogram when you do ordinary kriging. Plot the results along with a plot of the kriging standard errors. Remember to be careful of that range parameter - what you enter depends on which semivariogram model you used. Compare the results and comment.}
+
+{\bf Fit an OK model using the residual semivariogram parameter estimates and then fit a UK model using the same estimates.}
+
+Both OK and UK results show similar rough-ness patterns in the prediction contour plot. The UK model produced more extreme predictions than the OK results. The prediction SE's are exactly the same.
+
+<<prob1d>>=
+# Note trend=2,m0="kt" in the argument list when doing universal kriging.
+nugget <- sph.reml$nugget
+effsill <- sph.reml$cov.pars[1] + nugget
+range <- sph.reml$cov.pars[2]
+wheat.uk<-ksline(wheat.geodat,locations=wheat.grid,cov.model="spherical",
+cov.pars=c(effsill,range),
+nugget=nugget,trend=2,m0="kt")
+
+#note hpts is not defined in the notes?
+
+par(mfrow=c(1,1))
+htps <- chull(wheat.dat[,1],wheat.dat[,2])
+htps <- c(htps,htps[1])
+contour(wheat.uk,nlevels=15, main = "Universal Kriging")
+lines(wheat.dat[htps,1],wheat.dat[htps,2])
+
+bord <- wheat.dat[chull(wheat.dat[,1],wheat.dat[,2]),-c(3:5)]
+pred.grid<-expand.grid(seq(-10,60,l=30),seq(-10,60,l=30))
+
+kr.border <- ksline(wheat.geodat,locations=pred.grid,
+                    borders=bord,
+                    cov.model = "spherical", cov.pars = c(22,50),
+                    nugget = 20,m0="kt",trend=1, messages = FALSE)
+contour(kr.border,val=sqrt(kr.border$krige.var))
+title(main="Universal Kriging SEs")
+
+
+wheat.ok<-ksline(wheat.geodat,locations=wheat.grid,cov.model="spherical",
+cov.pars=c(effsill,range),nugget=nugget)
+contour(wheat.ok,nlevels=15, main ="Oridinary Kriging")
+lines(wheat.dat[htps,1],wheat.dat[htps,2])
+
+kr.border.ok <- ksline(wheat.geodat,locations=pred.grid,
+                    borders=bord,
+                    cov.model = "spherical", cov.pars = c(22,50),
+                    nugget = 20, messages = FALSE)
+contour(kr.border.ok,val=sqrt(kr.border.ok$krige.var))
+title(main="Ordinary Kriging SEs")
+
+
+
+@
+
+
+\end{enumerate}
+
+\item
+
+<<prob2a>>=
+C <- function(t){
+  exp(-(3*t/5))
+}
+
+dist.dat <- dist()
+@
+
+<<prob2b>>=
+u<-seq(2,4,l=1000)
+m<- -(1 -t(one.vec)%*%solve(Sigmat)%*%sigvec.B)/(
+  t(one.vec)%*%solve(Sigmat)%*%one.vec)
+# approximate sigma(B,B)
+# set up a storage vector which will contain the
+# point to block covariances between Z((2,4)) and
+# the individual points in the interval (2,4).
+e<-rep(0,1000)
+# Now approximate the point to block covariances
+# Cov(Z(B),Z(u[i]) where u[i] is a point in B
+for(i in 1:1000){
+ e[i]<-mean(exp(-3*abs(u-u[i])/5))}
+# now take the mean of all the point to block covariances
+# in e to get Cov(Z(B),Z(B))
+sig.BB<-mean(e)
+sig.BB
+
+@
+
+\end{enumerate}
+\end{document}
+
