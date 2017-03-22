@@ -1,0 +1,15 @@
+require(sp)
+require(gstat)
+require(lattice)
+
+# use jura dataset
+data("jura")
+head(jura.val)
+jura.dat <- jura.val[,c("long", "lat", "Co", "Ni")]
+dim(jura.dat)
+
+
+# try to predict Co given Ni
+
+xyplot(Ni ~ Co, as.data.frame(jura.dat))
+correlation(jura.dat$Ni,jura.dat$Co)
